@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rehan | Cinematic Video Editor</title>
+  <meta name="description" content="Rehan — Cinematic video editor. Trailers, reels, music videos, YouTube, ads. Fast turnaround, story-first edits." />
+
+  <!-- Tailwind CSS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root{ color-scheme: dark; }
+    html { scroll-behavior: smooth; }
+
+    /* Subtle animated grain */
+    .grain:before{
+      content:"";
+      position:fixed;
+      inset:-40px;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.25'/%3E%3C/svg%3E");
+      background-size:260px 260px;
+      pointer-events:none;
+      mix-blend-mode:overlay;
+      opacity:.18;
+      transform:translate3d(0,0,0);
+      animation:grainMove 8s steps(10) infinite;
+      z-index:0;
+    }
+    @keyframes grainMove{
+      0%{ transform:translate(0,0); }
+      10%{ transform:translate(-2%,-4%); }
+      20%{ transform:translate(-8%,2%); }
+      30%{ transform:translate(3%,-10%); }
+      40%{ transform:translate(-10%,8%); }
+      50%{ transform:translate(-1%,6%); }
+      60%{ transform:translate(8%,0%); }
+      70%{ transform:translate(10%,10%); }
+      80%{ transform:translate(2%,12%); }
+      90%{ transform:translate(-6%,2%); }
+      100%{ transform:translate(0,0); }
+    }
+
+    /* Canva embed shadow tweak */
+    .canva-shell{ box-shadow: 0 12px 40px rgba(0,0,0,.55), 0 2px 10px rgba(63,69,81,.16); }
+
+    /* Simple reveal animation */
+    .reveal{ opacity:0; transform: translateY(10px); transition: opacity .6s ease, transform .6s ease; }
+    .reveal.is-visible{ opacity:1; transform: translateY(0px); }
+
+    /* Better focus ring for dark backgrounds */
+    :focus-visible{ outline: 2px solid rgba(255,255,255,.85); outline-offset: 2px; }
+
+    /* Crisp SVG text in badges */
+    svg text{ dominant-baseline: alphabetic; }
+  </style>
+</head>
+
+<body class="grain bg-black text-white">
+  <!-- Background glow -->
+  <div class="pointer-events-none fixed inset-0 -z-10">
+    <div class="absolute -top-32 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/10 blur-3xl"></div>
+    <div class="absolute -bottom-40 right-[-80px] h-[520px] w-[520px] rounded-full bg-fuchsia-500/10 blur-3xl"></div>
+    <div class="absolute -bottom-40 left-[-120px] h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-3xl"></div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-4 right-4 z-50 hidden max-w-sm rounded-xl border border-white/10 bg-zinc-900/85 px-4 py-3 text-sm text-white shadow-xl backdrop-blur">
+    <div class="flex items-start gap-3">
+      <div class="mt-0.5 h-2 w-2 rounded-full bg-emerald-400"></div>
+      <div>
+        <div id="toastTitle" class="font-semibold">Done</div>
+        <div id="toastMsg" class="text-white/75">Copied.</div>
+      </div>
+      <button id="toastClose" class="ml-auto text-white/60 hover:text-white" aria-label="Close notification">✕</button>
+    </div>
+  </div>
+
+  <!-- Confirm external open modal -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div id="confirmBackdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="relative mx-auto flex min-h-full w-[95%] max-w-md items-center justify-center py-10">
+      <div class="w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl backdrop-blur">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div id="confirmTitle" class="text-base font-semibold">Open link?</div>
+            <div id="confirmMsg" class="mt-1 text-sm text-white/70">This will open an external app or website.</div>
+          </div>
+          <button id="confirmClose" class="rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/10" type="button" aria-label="Close dialog">✕</button>
+        </div>
+
+        <div class="mt-4 rounded-xl border border-white/10 bg-black/30 p-3">
+          <div class="text-[11px] text-white/50">Link</div>
+          <code id="confirmUrl" class="mt-1 block break-all text-xs text-white/80"></code>
+        </div>
+
+        <label class="mt-4 flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5">
+          <input id="confirmRemember" type="checkbox" class="mt-0.5" />
+          <span class="text-xs text-white/70">Don’t ask again on this device</span>
+        </label>
+
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button id="confirmCancel" class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" type="button">Cancel</button>
+          <button id="confirmAllow" class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90" type="button">Open</button>
+        </div>
+
+        <div class="mt-3 text-[11px] text-white/50">Tip: your browser may switch to the app automatically on mobile.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-white/10 bg-black/55 backdrop-blur">
+    <div class="mx-auto flex w-[95%] max-w-6xl items-center justify-between py-3">
+      <a href="#top" class="group flex items-center gap-2">
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
+          <span class="text-sm font-semibold tracking-tight">R</span>
+        </span>
+        <div>
+          <div class="text-sm font-semibold leading-4">Rehan</div>
+          <div class="text-xs text-white/55">Cinematic Video Editor</div>
+        </div>
+      </a>
+
+      <nav class="hidden items-center gap-6 md:flex" aria-label="Primary">
+        <a class="nav-link text-sm text-white/75 hover:text-white" href="#work">Work</a>
+        <a class="nav-link text-sm text-white/75 hover:text-white" href="#services">Services</a>
+        <a class="nav-link text-sm text-white/75 hover:text-white" href="#process">Process</a>
+        <a class="nav-link text-sm text-white/75 hover:text-white" href="#contact">Contact</a>
+      </nav>
+
+      <div class="flex items-center gap-2">
+        <a href="#contact" class="hidden rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90 md:inline-flex">Hire me</a>
+        <button id="menuBtn" class="inline-flex rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10 md:hidden" aria-expanded="false" aria-controls="mobileMenu">
+          Menu
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile menu -->
+    <div id="mobileMenu" class="hidden border-t border-white/10 bg-black/65 backdrop-blur md:hidden">
+      <div class="mx-auto w-[95%] max-w-6xl py-3">
+        <div class="grid gap-2">
+          <a class="nav-link block rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-white/10" href="#work">Work</a>
+          <a class="nav-link block rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-white/10" href="#services">Services</a>
+          <a class="nav-link block rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-white/10" href="#process">Process</a>
+          <a class="nav-link block rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-white/10" href="#contact">Contact</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="top" class="relative z-10">
+    <!-- Hero -->
+    <section class="mx-auto w-[95%] max-w-6xl pt-10 md:pt-16">
+      <div class="grid items-center gap-10 md:grid-cols-12">
+        <div class="md:col-span-7">
+          <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
+            <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+            Available for new projects
+          </div>
+          <h1 class="mt-4 text-4xl font-semibold tracking-tight md:text-6xl">
+            Cinematic edits that feel like a <span class="text-white/70">movie trailer</span>.
+          </h1>
+          <p class="mt-4 max-w-xl text-base leading-relaxed text-white/70 md:text-lg">
+            I edit reels, YouTube videos, ads, and music videos with story-first pacing, clean sound design, and bold color.
+          </p>
+
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <a href="#work" class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90">Watch my work</a>
+            <a href="#contact" class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10">Get a quote</a>
+            <button id="copyEmailBtn" class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white/90 hover:bg-white/10" type="button">
+              Copy email
+            </button>
+          </div>
+
+          <div class="mt-8 grid max-w-xl grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div class="text-xs text-white/60">Turnaround</div>
+              <div class="mt-1 text-sm font-semibold">24–72 hrs</div>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div class="text-xs text-white/60">Style</div>
+              <div class="mt-1 text-sm font-semibold">Cinematic</div>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div class="text-xs text-white/60">Deliverables</div>
+              <div class="mt-1 text-sm font-semibold">4K / Reels</div>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div class="text-xs text-white/60">Tools</div>
+              <div class="mt-2 flex items-center gap-2" aria-label="Tools used: Adobe Premiere Pro, Adobe After Effects, DaVinci Resolve">
+                <!-- Premiere Pro badge -->
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#2a153f] ring-1 ring-white/10" title="Adobe Premiere Pro" aria-label="Adobe Premiere Pro">
+                  <svg viewBox="0 0 48 48" class="h-6 w-6" aria-hidden="true">
+                    <rect x="4" y="4" width="40" height="40" rx="8" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2" />
+                    <text x="24" y="30" text-anchor="middle" font-size="18" font-family="ui-sans-serif, system-ui" font-weight="800" fill="#c4a1ff">Pr</text>
+                  </svg>
+                </span>
+
+                <!-- After Effects badge -->
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#111a3f] ring-1 ring-white/10" title="Adobe After Effects" aria-label="Adobe After Effects">
+                  <svg viewBox="0 0 48 48" class="h-6 w-6" aria-hidden="true">
+                    <rect x="4" y="4" width="40" height="40" rx="8" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2" />
+                    <text x="24" y="30" text-anchor="middle" font-size="18" font-family="ui-sans-serif, system-ui" font-weight="800" fill="#7aa7ff">Ae</text>
+                  </svg>
+                </span>
+
+                <!-- DaVinci Resolve badge (official logo image) -->
+                <span class="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-black/40 ring-1 ring-white/10" title="DaVinci Resolve" aria-label="DaVinci Resolve">
+                  <img
+                    src="data:image/jpeg;base64,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"
+                    class="h-7 w-7 object-contain"
+                    alt="DaVinci Resolve"
+                    decoding="async"
+                  />
+                </span>
+
+                <span class="sr-only">Premiere Pro, After Effects, DaVinci Resolve</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="md:col-span-5">
+          <div class="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm font-semibold">Quick links</div>
+                <div class="text-xs text-white/60">Portfolio, socials, and contact</div>
+              </div>
+              <div class="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs text-white/70">One-page</div>
+            </div>
+
+            <div class="mt-5 grid gap-3">
+              <a class="group flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3 hover:bg-black/50" href="#work">
+                <div>
+                  <div class="text-sm font-semibold">Portfolio (embedded)</div>
+                  <div class="text-xs text-white/60">Watch inside this page</div>
+                </div>
+                <span class="text-white/60 group-hover:text-white">→</span>
+              </a>
+
+              <a class="group flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3 hover:bg-black/50" id="whatsAppLink" href="#contact">
+                <div>
+                  <div class="text-sm font-semibold">WhatsApp</div>
+                  <div class="text-xs text-white/60">Fast replies for briefs</div>
+                </div>
+                <span class="text-white/60 group-hover:text-white">→</span>
+              </a>
+
+              <a class="group flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3 hover:bg-black/50" id="instagramLink" href="https://www.instagram.com/someone.5007/" target="_blank" rel="noopener">
+                <div>
+                  <div class="text-sm font-semibold">Instagram</div>
+                  <div class="text-xs text-white/60">Reels & BTS</div>
+                </div>
+                <span class="text-white/60 group-hover:text-white">→</span>
+              </a>
+
+              <div class="rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+                <div class="text-xs text-white/60">Email</div>
+                <div class="mt-1 flex items-center justify-between gap-2">
+                  <code id="emailText" class="text-sm font-semibold text-white">rezaulashraf934@gmail.com</code>
+                  <button id="copyInlineBtn" class="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:bg-white/10" type="button">Copy</button>
+                </div>
+                <div class="mt-2 text-xs text-white/50">Tap copy to share quickly.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Work / Canva embed -->
+    <section id="work" class="mx-auto w-[95%] max-w-6xl pt-12 md:pt-16">
+      <div class="flex items-end justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight md:text-3xl">Featured work</h2>
+        </div>
+        <a class="hidden rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 md:inline-flex" href="#contact">Request similar edit</a>
+      </div>
+
+      <div class="reveal mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3">
+        <div style="position: relative; width: 100%; height: 0; padding-top: 56.2500%;
+          padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
+          border-radius: 8px; will-change: transform;">
+          <iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0; margin: 0;"
+            src="https://www.canva.com/design/DAG72pk0l98/WkYRrJJw5jO6hcJ-7r18Vg/watch?embed" allowfullscreen="allowfullscreen" allow="fullscreen">
+          </iframe>
+        </div>
+
+      </div>
+
+      <!-- Highlights -->
+      <div class="mt-8 grid gap-4 md:grid-cols-3">
+        <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-5">
+          <div class="text-sm font-semibold">Trailer-style pacing</div>
+          <p class="mt-2 text-sm text-white/70">Hook in the first 2 seconds, strong beat cuts, and intentional slow moments.</p>
+        </div>
+        <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-5">
+          <div class="text-sm font-semibold">Sound design + music</div>
+          <p class="mt-2 text-sm text-white/70">Impact hits, risers, ambience layers, and clean dialogue leveling.</p>
+        </div>
+        <div class="reveal rounded-2xl border border-white/10 bg-white/5 p-5">
+          <div class="text-sm font-semibold">Color & finishing</div>
+          <p class="mt-2 text-sm text-white/70">Modern contrast, film-like tones, and export-ready formatting for platforms.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Services -->
+    <section id="services" class="mx-auto w-[95%] max-w-6xl pt-12 md:pt-16">
+      <div class="grid gap-8 md:grid-cols-12 md:items-start">
+        <div class="md:col-span-5">
+          <h2 class="text-2xl font-semibold tracking-tight md:text-3xl">Services</h2>
+          <p class="mt-2 text-white/70">Pick a lane or mix and match. I can also match your existing brand style.</p>
+
+          <div class="mt-5 rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div class="text-xs text-white/60">Typical deliverables</div>
+            <ul class="mt-2 space-y-2 text-sm text-white/75">
+              <li>• 9:16 Reels / Shorts (subtitles, punch-ins, motion)</li>
+              <li>• YouTube edits (story pacing + clean audio)</li>
+              <li>• Ads (fast hook + clear CTA)</li>
+              <li>• Music video / cinematic montage</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="md:col-span-7">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-semibold">Reels / Shorts</div>
+                <span class="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70">9:16</span>
+              </div>
+              <p class="mt-2 text-sm text-white/70">Hooks, speed ramps, captions, and rhythm cuts optimized for retention.</p>
+            </div>
+
+            <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-semibold">YouTube Editing</div>
+                <span class="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70">16:9</span>
+              </div>
+              <p class="mt-2 text-sm text-white/70">Structure, pacing, B-roll, SFX, and polished audio for long-form.</p>
+            </div>
+
+            <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-semibold">Ads & Promos</div>
+                <span class="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70">Meta/TikTok</span>
+              </div>
+              <p class="mt-2 text-sm text-white/70">Performance-first edits: hook, value, proof, and clear CTA.</p>
+            </div>
+
+            <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+              <div class="flex items-center justify-between">
+                <div class="text-sm font-semibold">Color & Finishing</div>
+                <span class="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/70">4K</span>
+              </div>
+              <p class="mt-2 text-sm text-white/70">Shot matching, grading, subtle film texture, and export settings.</p>
+            </div>
+          </div>
+
+          <div class="mt-4 rounded-2xl border border-white/10 bg-gradient-to-r from-white/10 to-white/5 p-5">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div class="text-sm font-semibold">Want a custom package?</div>
+                <div class="text-sm text-white/70">Send your references + deadline — I’ll reply with a quote.</div>
+              </div>
+              <a href="#contact" class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90">Contact me</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Process -->
+    <section id="process" class="mx-auto w-[95%] max-w-6xl pt-12 md:pt-16">
+      <div class="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight md:text-3xl">Process</h2>
+          <p class="mt-2 text-white/70">Clear steps. No confusion. Fast turnaround.</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+          <span class="font-semibold text-white">Typical timeline:</span> 1–3 days
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-4 md:grid-cols-4">
+        <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+          <div class="text-xs text-white/60">01</div>
+          <div class="mt-2 text-sm font-semibold">Brief + references</div>
+          <p class="mt-2 text-sm text-white/70">You send clips, goals, examples, and platform specs.</p>
+        </div>
+        <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+          <div class="text-xs text-white/60">02</div>
+          <div class="mt-2 text-sm font-semibold">First cut</div>
+          <p class="mt-2 text-sm text-white/70">Structure + pacing + music; I’ll send a preview link.</p>
+        </div>
+        <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+          <div class="text-xs text-white/60">03</div>
+          <div class="mt-2 text-sm font-semibold">Revisions</div>
+          <p class="mt-2 text-sm text-white/70">Tight notes → fast iteration (timed comments preferred).</p>
+        </div>
+        <div class="reveal rounded-2xl border border-white/10 bg-black/30 p-5">
+          <div class="text-xs text-white/60">04</div>
+          <div class="mt-2 text-sm font-semibold">Final delivery</div>
+          <p class="mt-2 text-sm text-white/70">Export optimized for the platform + versions if needed.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Client feedback (form) -->
+    <section id="feedback" class="mx-auto w-[95%] max-w-6xl pt-12 md:pt-16">
+      <div>
+        <h2 class="text-2xl font-semibold tracking-tight md:text-3xl">Client feedback</h2>
+        <p class="mt-2 text-white/70">Clients can leave feedback here. It can be sent by email or WhatsApp (no login needed).</p>
+      </div>
+
+      <div class="mt-6 grid gap-6 md:grid-cols-12 md:items-start">
+        <div class="md:col-span-5">
+          <div class="reveal rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6">
+            <div class="flex items-end justify-between gap-4">
+              <div>
+                <div class="text-sm font-semibold">Leave a review</div>
+                <div class="text-xs text-white/60">Your message will be sent to the editor.</div>
+              </div>
+              <div class="text-xs text-white/50">No backend</div>
+            </div>
+
+            <form id="feedbackForm" class="mt-5 grid gap-4">
+              <label class="grid gap-2">
+                <span class="text-xs text-white/60">Your name</span>
+                <input id="fbName" class="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/30" placeholder="Your name" autocomplete="name" />
+              </label>
+
+              <label class="grid gap-2">
+                <span class="text-xs text-white/60">Project / platform</span>
+                <input id="fbProject" class="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/30" placeholder="e.g., YouTube, Reels, Music video" />
+              </label>
+
+              <label class="grid gap-2">
+                <span class="text-xs text-white/60">Rating</span>
+                <select id="fbRating" class="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white focus:border-white/30">
+                  <option value="5">★★★★★ (5)</option>
+                  <option value="4">★★★★☆ (4)</option>
+                  <option value="3">★★★☆☆ (3)</option>
+                  <option value="2">★★☆☆☆ (2)</option>
+                  <option value="1">★☆☆☆☆ (1)</option>
+                </select>
+              </label>
+
+              <label class="grid gap-2">
+                <span class="text-xs text-white/60">Feedback</span>
+                <textarea id="fbMessage" rows="5" class="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-white/30" placeholder="Write your feedback here..."></textarea>
+              </label>
+
+              <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
+                <input id="fbPermission" type="checkbox" class="mt-0.5" />
+                <span class="text-xs text-white/70">I allow this feedback to be used as a public testimonial (name/project only).</span>
+              </label>
+
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button class="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-white/90" type="submit">Send via Email</button>
+                <button id="sendFeedbackWhatsApp" class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10" type="button">Send via WhatsApp</button>
+              </div>
+
+              <div class="text-xs text-white/50">Tip: keep it short and specific (pacing, sound, color, delivery time).</div>
+            </form>
+          </div>
+        </div>
+
+        <div class="md:col-span-7">
+          <div class="reveal rounded-3xl border border-white/10 bg-black/30 p-6">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div class="text-sm font-semibold">Saved previews (this device)</div>
+                <div class="text-xs text-white/60">After submission, a copy appears here so you can reuse it later.</div>
+              </div>
+              <button id="clearFeedback" class="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10" type="button">Clear</button>
+            </div>
+
+            <div id="feedbackEmpty" class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-white/70">
+              No feedback saved yet.
+            </div>
+
+            <div id="feedbackList" class="mt-4 grid gap-4 sm:grid-cols-2"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section id="contact" class="mx-auto w-[95%] max-w-6xl pb-16 pt-12 md:pb-24 md:pt-16">
+      <div class="grid gap-8 md:grid-cols-12 md:items-start">
+        <div class="md:col-span-5">
+          <h2 class="text-2xl font-semibold tracking-tight md:text-3xl">Contact</h2>
+          <p class="mt-2 text-white/70">Message me on WhatsApp / Instagram or email. I’ll reply with next steps and a quote.</p>
+
+          <div class="mt-6 space-y-3">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div class="text-xs text-white/60">Email</div>
+              <div class="mt-1 flex items-center justify-between gap-3">
+                <a id="emailLink" class="text-sm font-semibold hover:underline" href="mailto:rezaulashraf934@gmail.com">rezaulashraf934@gmail.com</a>
+                <button id="copyEmailBtn2" class="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:bg-white/10" type="button">Copy</button>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div class="text-xs text-white/60">Quick message</div>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <a id="whatsAppLink2" class="inline-flex items-center rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-500" href="#">WhatsApp</a>
+                <a id="instagramLink2" class="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="https://www.instagram.com/someone.5007/" target="_blank" rel="noopener">Instagram</a>
+                <a id="openMail" class="inline-flex items-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="mailto:rezaulashraf934@gmail.com?subject=Video%20Editing%20Project%20Inquiry">Open email</a>
+              </div>
+              <p class="mt-3 text-xs text-white/50">Links are set to your current details — update if they ever change.</p>
+            </div>
+
+            <div class="rounded-2xl border border-white/10 bg-black/30 p-5">
+              <div class="text-xs text-white/60">Now</div>
+              <div class="mt-1 text-sm text-white/70">I’m available for <span class="font-semibold text-white">short-form & long-form</span> edits.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="md:col-span-7">
+          <div class="reveal rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-6">
+            <div class="flex items-end justify-between gap-6">
+              <div>
+                <div class="text-sm font-semibold">What to send</div>
+                <div class="text-xs text-white/60">This helps me quote fast (no form needed).</div>
+              </div>
+              <div class="text-xs text-white/50">1–3 day timeline</div>
+            </div>
+
+            <ul class="mt-5 space-y-2 text-sm text-white/75">
+              <li>• Platform + format (Reels 9:16 / YouTube 16:9)</li>
+              <li>• Video length + number of videos</li>
+              <li>• Reference style (links)</li>
+              <li>• Deadline</li>
+              <li>• Any must-have notes (captions, SFX, color mood)</li>
+            </ul>
+
+            <div class="mt-5 flex flex-wrap gap-2">
+              <a id="whatsAppLink3" class="inline-flex items-center justify-center rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-500" href="#">Message on WhatsApp</a>
+              <a id="instagramLink3" class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" href="https://www.instagram.com/someone.5007/" target="_blank" rel="noopener">DM on Instagram</a>
+              <button id="copyEmailBtn3" class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10" type="button">Copy email</button>
+            </div>
+
+            <div class="mt-3 text-xs text-white/50">Fastest: WhatsApp.</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="relative z-10 border-t border-white/10 bg-black/40">
+    <div class="mx-auto flex w-[95%] max-w-6xl flex-col gap-3 py-8 md:flex-row md:items-center md:justify-between">
+      <div class="text-sm text-white/70">© <span id="year"></span> Rehan. All rights reserved.</div>
+      <div class="flex flex-wrap items-center gap-2 text-xs text-white/55">
+        <a class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 hover:bg-white/10" href="#top">Back to top</a>
+        <span class="hidden sm:inline">•</span>
+        <span>Built as a single-page portfolio</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ---------- Helpers ----------
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    function toast(title, msg){
+      const el = $('#toast');
+      $('#toastTitle').textContent = title || 'Done';
+      $('#toastMsg').textContent = msg || '';
+      el.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => el.classList.add('hidden'), 2400);
+    }
+
+    function normalizeWhatsApp(input){
+      const digits = String(input || '').replace(/\D/g,'');
+      if(!digits) return '';
+      let d = digits.replace(/^0+/, '');
+      // If user enters a 10-digit Indian number, auto-prefix country code.
+      if(d.length === 10) d = '91' + d;
+      return d;
+    }
+
+    function normalizeInstagram(url){
+      const raw = String(url || '').trim();
+      if(!raw) return '';
+
+      // Allow common shorthand inputs
+      let u = raw;
+      if(u.startsWith('@')) u = u.slice(1);
+      if(/^[a-z0-9._]+$/i.test(u)) u = 'https://www.instagram.com/' + u + '/';
+
+      // Ensure URL format
+      if(!/^https?:\/\//i.test(u)){
+        if(u.startsWith('www.')) u = 'https://' + u;
+        else if(u.startsWith('instagram.com')) u = 'https://' + u;
+      }
+
+      // Clean up query params for a direct profile link
+      try{
+        const o = new URL(u);
+        if(o.hostname.includes('instagram.com')){
+          o.search = '';
+          o.hash = '';
+          if(!o.pathname.endsWith('/')) o.pathname += '/';
+          return o.toString();
+        }
+      } catch {
+        // fallthrough
+      }
+
+      return u;
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
+    }
+
+    // ---------- Mobile menu ----------
+    const menuBtn = $('#menuBtn');
+    const mobileMenu = $('#mobileMenu');
+    menuBtn?.addEventListener('click', () => {
+      const open = mobileMenu.classList.toggle('hidden') === false;
+      menuBtn.setAttribute('aria-expanded', String(open));
+    });
+    $$('.nav-link').forEach(a => a.addEventListener('click', () => {
+      if (!mobileMenu.classList.contains('hidden')) mobileMenu.classList.add('hidden');
+      menuBtn?.setAttribute('aria-expanded', 'false');
+    }));
+
+    // ---------- Reveal on scroll ----------
+    const revealEls = $$('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if(e.isIntersecting){
+          e.target.classList.add('is-visible');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    revealEls.forEach(el => io.observe(el));
+
+    function observeReveal(el){
+      if(!el) return;
+      el.classList.add('reveal');
+      io.observe(el);
+    }
+
+    // ---------- Active section highlighting ----------
+    const sections = ['work','services','process','contact']
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+    const navLinks = $$('.nav-link');
+
+    const sectionIO = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter(e => e.isIntersecting)
+        .sort((a,b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if(!visible) return;
+      const id = visible.target.id;
+      navLinks.forEach(a => {
+        const on = (a.getAttribute('href') === '#' + id);
+        a.classList.toggle('text-white', on);
+        a.classList.toggle('text-white/75', !on);
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: [0.05, 0.1, 0.2] });
+    sections.forEach(s => sectionIO.observe(s));
+
+    // ---------- Settings (email/whatsapp/instagram) ----------
+    const DEFAULTS = {
+      email: 'rezaulashraf934@gmail.com',
+      whatsapp: '917620771411',
+      instagram: 'https://www.instagram.com/someone.5007/'
+    };
+
+    const OLD_DEFAULTS = {
+      email: 'rehan.editor@email.com',
+      whatsapp: '15551234567',
+      instagram: 'https://instagram.com/'
+    };
+
+    function loadSettings(){
+      try{
+        const raw = localStorage.getItem('rehan_portfolio_settings');
+        return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };
+      } catch {
+        return { ...DEFAULTS };
+      }
+    }
+
+    function saveSettings(obj){
+      localStorage.setItem('rehan_portfolio_settings', JSON.stringify(obj));
+    }
+
+    function migrateSettings(s){
+      const next = { ...s };
+      if(next.email === OLD_DEFAULTS.email) next.email = DEFAULTS.email;
+      if(next.whatsapp === OLD_DEFAULTS.whatsapp) next.whatsapp = DEFAULTS.whatsapp;
+      if(next.instagram === OLD_DEFAULTS.instagram) next.instagram = DEFAULTS.instagram;
+      next.whatsapp = normalizeWhatsApp(next.whatsapp) || DEFAULTS.whatsapp;
+      next.instagram = normalizeInstagram(next.instagram) || DEFAULTS.instagram;
+      return next;
+    }
+
+    function applySettings(s){
+      // Update visible email
+      const emailText = $('#emailText');
+      const emailLink = $('#emailLink');
+      if(emailText) emailText.textContent = s.email;
+      if(emailLink){
+        emailLink.textContent = s.email;
+        emailLink.setAttribute('href', 'mailto:' + s.email);
+      }
+      const openMail = $('#openMail');
+      if(openMail) openMail.setAttribute('href', 'mailto:' + s.email + '?subject=' + encodeURIComponent('Video Editing Project Inquiry'));
+
+      // WhatsApp links (opened via confirm modal)
+      const waUrl = 'https://wa.me/' + encodeURIComponent(s.whatsapp) + '?text=' + encodeURIComponent('Hi! I want to discuss a video editing project.');
+      ['#whatsAppLink','#whatsAppLink2','#whatsAppLink3'].forEach(id => {
+        const a = $(id);
+        if(a){
+          a.setAttribute('href', waUrl);
+          // Keep attributes for graceful fallback if JS is disabled
+          a.setAttribute('target','_blank');
+          a.setAttribute('rel','noopener');
+        }
+      });
+
+      // Instagram links (opened via confirm modal)
+      ['#instagramLink','#instagramLink2','#instagramLink3'].forEach(id => {
+        const a = $(id);
+        if(a){
+          a.setAttribute('href', s.instagram);
+          a.setAttribute('target','_blank');
+          a.setAttribute('rel','noopener');
+        }
+      });
+
+      // Re-bind confirm handlers after updating links
+      try{ bindAllExternalConfirms(); } catch {}
+
+    }
+
+    let settings = migrateSettings(loadSettings());
+    saveSettings(settings);
+    applySettings(settings);
+
+    // ---------- Copy email buttons ----------
+    async function copyEmail(){
+      const email = settings.email;
+      try{
+        await navigator.clipboard.writeText(email);
+        toast('Copied', email);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = email;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        toast('Copied', email);
+      }
+    }
+
+    ['#copyEmailBtn', '#copyInlineBtn', '#copyEmailBtn2', '#copyEmailBtn3'].forEach(id => {
+      const btn = $(id);
+      btn?.addEventListener('click', copyEmail);
+    });
+
+    // ---------- Confirm before opening external apps (WhatsApp/Instagram) ----------
+    const CONFIRM_KEY = 'rehan_portfolio_confirm_external_v1';
+
+    function loadConfirmPrefs(){
+      try{
+        const raw = localStorage.getItem(CONFIRM_KEY);
+        const obj = raw ? JSON.parse(raw) : {};
+        return {
+          skipWhatsApp: Boolean(obj.skipWhatsApp),
+          skipInstagram: Boolean(obj.skipInstagram)
+        };
+      } catch {
+        return { skipWhatsApp: false, skipInstagram: false };
+      }
+    }
+
+    function saveConfirmPrefs(p){
+      localStorage.setItem(CONFIRM_KEY, JSON.stringify(p));
+    }
+
+    const confirmModal = $('#confirmModal');
+    const confirmBackdrop = $('#confirmBackdrop');
+    const confirmClose = $('#confirmClose');
+    const confirmCancel = $('#confirmCancel');
+    const confirmAllow = $('#confirmAllow');
+    const confirmRemember = $('#confirmRemember');
+    const confirmTitle = $('#confirmTitle');
+    const confirmMsg = $('#confirmMsg');
+    const confirmUrl = $('#confirmUrl');
+
+    let confirmPrefs = loadConfirmPrefs();
+    let pendingOpen = null;
+    let lastFocusEl = null;
+
+    function openModal(){
+      if(!confirmModal) return;
+      lastFocusEl = document.activeElement;
+      confirmModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => confirmAllow?.focus(), 0);
+    }
+
+    function closeModal(){
+      if(!confirmModal) return;
+      confirmModal.classList.add('hidden');
+      document.body.style.overflow = '';
+      pendingOpen = null;
+      confirmRemember && (confirmRemember.checked = false);
+      lastFocusEl?.focus?.();
+    }
+
+    function askToOpen({ kind, url, label }){
+      // kind: 'whatsapp' | 'instagram'
+      const skip = (kind === 'whatsapp') ? confirmPrefs.skipWhatsApp : confirmPrefs.skipInstagram;
+      if(skip){
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      if(confirmTitle) confirmTitle.textContent = `Open ${label}?`;
+      if(confirmMsg) confirmMsg.textContent = `Allow this website to open ${label} in a new tab/window?`;
+      if(confirmUrl) confirmUrl.textContent = url;
+
+      pendingOpen = { kind, url, label };
+      openModal();
+    }
+
+    confirmAllow?.addEventListener('click', () => {
+      if(!pendingOpen) return closeModal();
+
+      const remember = Boolean(confirmRemember?.checked);
+      if(remember){
+        if(pendingOpen.kind === 'whatsapp') confirmPrefs.skipWhatsApp = true;
+        if(pendingOpen.kind === 'instagram') confirmPrefs.skipInstagram = true;
+        saveConfirmPrefs(confirmPrefs);
+      }
+
+      window.open(pendingOpen.url, '_blank', 'noopener,noreferrer');
+      closeModal();
+    });
+
+    function onCancel(){
+      closeModal();
+    }
+
+    confirmCancel?.addEventListener('click', onCancel);
+    confirmClose?.addEventListener('click', onCancel);
+    confirmBackdrop?.addEventListener('click', onCancel);
+
+    document.addEventListener('keydown', (e) => {
+      if(confirmModal?.classList.contains('hidden')) return;
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        closeModal();
+      }
+      if(e.key === 'Enter'){
+        // Allow Enter to confirm when the modal is open (except when focused on Cancel)
+        const active = document.activeElement;
+        if(active && active.id === 'confirmCancel') return;
+        if(active && active.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        confirmAllow?.click();
+      }
+    });
+
+    // Intercept WhatsApp + Instagram clicks
+    function bindConfirmForExternal(selector, kind, label){
+      $$(selector).forEach(el => {
+        // Avoid double-binding
+        if(el.dataset.confirmBound === '1') return;
+        el.dataset.confirmBound = '1';
+
+        el.addEventListener('click', (e) => {
+          const url = el.getAttribute('href');
+          if(!url || url === '#') return; // not ready yet
+          e.preventDefault();
+          askToOpen({ kind, url, label });
+        });
+      });
+    }
+
+    function bindAllExternalConfirms(){
+      bindConfirmForExternal('#whatsAppLink, #whatsAppLink2, #whatsAppLink3', 'whatsapp', 'WhatsApp');
+      bindConfirmForExternal('#instagramLink, #instagramLink2, #instagramLink3', 'instagram', 'Instagram');
+    }
+
+    bindAllExternalConfirms();
+
+    // ---------- Client feedback (send + local preview) ----------
+    const FEEDBACK_KEY = 'rehan_portfolio_feedback_v1';
+
+    function loadFeedback(){
+      try{
+        const raw = localStorage.getItem(FEEDBACK_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveFeedback(arr){
+      localStorage.setItem(FEEDBACK_KEY, JSON.stringify(arr));
+    }
+
+    function stars(n){
+      const k = Math.max(1, Math.min(5, Number(n) || 5));
+      return '★★★★★'.slice(0,k) + '☆☆☆☆☆'.slice(0,5-k);
+    }
+
+    function renderFeedback(){
+      const list = loadFeedback();
+      const wrap = $('#feedbackList');
+      const empty = $('#feedbackEmpty');
+      if(!wrap || !empty) return;
+
+      if(list.length === 0){
+        empty.classList.remove('hidden');
+        wrap.innerHTML = '';
+        return;
+      }
+
+      empty.classList.add('hidden');
+      wrap.innerHTML = list.map((item, idx) => {
+        const name = escapeHtml(item.name || 'Anonymous');
+        const project = escapeHtml(item.project || 'Client');
+        const msg = escapeHtml(item.message || '');
+        const rating = Number(item.rating || 5);
+        const st = stars(rating);
+        const when = escapeHtml(item.when || '');
+        return `
+          <figure class="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-xs text-white/60">${st} • ${rating}/5</div>
+                <figcaption class="mt-1 text-xs text-white/55">${name} • ${project}${when ? ' • ' + when : ''}</figcaption>
+              </div>
+              <button class="rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs font-semibold text-white/80 hover:bg-black/40" data-copy-index="${idx}" type="button">Copy</button>
+            </div>
+            <blockquote class="mt-3 text-sm text-white/85">“${msg}”</blockquote>
+            <div class="mt-3 text-[11px] text-white/50">Publish permission: ${item.permission ? 'Yes' : 'No'}</div>
+          </figure>
+        `;
+      }).join('');
+
+      // Make new cards reveal (best-effort)
+      $$('#feedbackList > figure').forEach(observeReveal);
+    }
+
+    function buildFeedbackText({name, project, rating, message, permission}){
+      return [
+        'Client feedback',
+        '',
+        `Name: ${name || '(not provided)'}`,
+        `Project/platform: ${project || '(not provided)'}`,
+        `Rating: ${rating}/5`,
+        `Permission to publish: ${permission ? 'Yes' : 'No'}`,
+        '',
+        'Message:',
+        message
+      ].join('\n');
+    }
+
+    function feedbackPayloadFromForm(){
+      const name = $('#fbName')?.value.trim() || '';
+      const project = $('#fbProject')?.value.trim() || '';
+      const rating = Number($('#fbRating')?.value || 5);
+      const message = $('#fbMessage')?.value.trim() || '';
+      const permission = Boolean($('#fbPermission')?.checked);
+      return { name, project, rating, message, permission };
+    }
+
+    function addFeedbackToLocal(payload){
+      const list = loadFeedback();
+      const now = new Date();
+      const when = now.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
+
+      const item = {
+        ...payload,
+        when,
+        createdAt: now.toISOString()
+      };
+
+      const next = [item, ...list].slice(0, 8);
+      saveFeedback(next);
+      renderFeedback();
+    }
+
+    $('#feedbackForm')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const payload = feedbackPayloadFromForm();
+
+      if(!payload.message || payload.message.length < 10){
+        toast('Add feedback', 'Please write at least a short review (10+ characters).');
+        $('#fbMessage')?.focus();
+        return;
+      }
+
+      addFeedbackToLocal(payload);
+
+      const subject = `Client feedback (${payload.rating}/5)`;
+      const body = buildFeedbackText(payload);
+      const mailto = `mailto:${encodeURIComponent(settings.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+      toast('Opening email', 'Your feedback is prefilled.');
+
+      // keep form filled (some people like editing). If you want auto-clear, uncomment:
+      // e.target.reset();
+    });
+
+    $('#sendFeedbackWhatsApp')?.addEventListener('click', () => {
+      const payload = feedbackPayloadFromForm();
+
+      if(!payload.message || payload.message.length < 10){
+        toast('Add feedback', 'Please write at least a short review (10+ characters).');
+        $('#fbMessage')?.focus();
+        return;
+      }
+
+      addFeedbackToLocal(payload);
+
+      const text = buildFeedbackText(payload);
+      const waUrl = 'https://wa.me/' + encodeURIComponent(settings.whatsapp) + '?text=' + encodeURIComponent(text);
+      askToOpen({ kind: 'whatsapp', url: waUrl, label: 'WhatsApp' });
+      toast('Ready', 'Tap Open to send via WhatsApp.');
+    });
+
+    $('#feedbackList')?.addEventListener('click', async (e) => {
+      const btn = e.target?.closest?.('[data-copy-index]');
+      if(!btn) return;
+      const idx = Number(btn.getAttribute('data-copy-index'));
+      const list = loadFeedback();
+      const item = list[idx];
+      if(!item) return;
+
+      const text = buildFeedbackText(item);
+      try{
+        await navigator.clipboard.writeText(text);
+        toast('Copied', 'Feedback copied.');
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        toast('Copied', 'Feedback copied.');
+      }
+    });
+
+    $('#clearFeedback')?.addEventListener('click', () => {
+      localStorage.removeItem(FEEDBACK_KEY);
+      renderFeedback();
+      toast('Cleared', 'Saved previews removed from this device.');
+    });
+
+    renderFeedback();
+
+    // ---------- Toast close ----------
+    $('#toastClose')?.addEventListener('click', () => $('#toast')?.classList.add('hidden'));
+
+    // ---------- Footer year ----------
+    $('#year').textContent = String(new Date().getFullYear());
+  </script>
+</body>
+</html>
